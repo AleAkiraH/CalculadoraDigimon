@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Orbitron:wght@400;500;700&display=swap');
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -11,9 +13,23 @@ body {
   font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   scroll-behavior: smooth;
-  overflow-x: hidden; /* Evita scroll horizontal indesejado */
-  min-height: 100vh; /* Garante altura mínima para tela inteira */
-  background: linear-gradient(135deg, #0f2027 0%, #2c5364 100%);
+  overflow-x: hidden;
+  min-height: 100vh;
+  background-color: #0f2027;
+  background-image: url('/images/digimon-pattern-bg.jpg');
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+:root {
+  --color-blue: #194b8d;
+  --color-purple: #6342b2;
+  --color-orange: #ff8c29;
+  --color-yellow: #ffc700;
+  --color-red: #e53e3e;
+  --color-green: #38a169;
+  --color-dark: #1a202c;
+  --color-light: #f8fafc;
 }
 
 a {
@@ -33,12 +49,13 @@ input::-webkit-inner-spin-button {
 
 button {
   cursor: pointer;
+  font-family: 'Orbitron', sans-serif;
 }
 
-/* Customização da scrollbar para melhor usabilidade */
+/* Customização da scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -47,17 +64,61 @@ button {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-purple);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-blue);
 }
 
-/* Corrige problemas de layout em iOS */
+/* Estilos para elementos especiais */
+.digimon-pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes sparkle {
+  0% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Corrige problemas iOS */
 @supports (-webkit-touch-callout: none) {
-  .calc-container {
+  .calculator-container {
     padding-bottom: env(safe-area-inset-bottom);
   }
+}
+
+/* Efeitos extras para destacar elementos */
+.shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-effect::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: rotate(30deg);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%) rotate(30deg); }
+  100% { transform: translateX(100%) rotate(30deg); }
 }
