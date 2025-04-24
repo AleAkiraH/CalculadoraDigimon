@@ -829,7 +829,6 @@ export default function Home() {
 
       <div className="digimon-container">
         <h1 className="digimon-title">
-          <img src="/images/digimon-icon.png" alt="Digimon Icon" className="digimon-title-icon" />
           Calculadora de Farm Digimon
         </h1>
         
@@ -1010,7 +1009,6 @@ export default function Home() {
                   </button>
                 </div>
               </form>
-              <img src="/images/agumon.png" alt="Digimon mascot" className="digimon-mascot" />
             </div>
           </section>
           
@@ -1080,7 +1078,6 @@ export default function Home() {
                   </div>
                 </div>
               )}
-              <img src="/images/gabumon.png" alt="Digimon mascot" className="digimon-mascot" />
             </div>
           </section>
           
@@ -1165,7 +1162,6 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <img src="/images/veemon.png" alt="Digimon mascot" className="digimon-mascot" />
             </div>
           </section>
         </div>
