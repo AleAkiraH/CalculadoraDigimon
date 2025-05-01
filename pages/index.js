@@ -5,29 +5,170 @@ import { Line } from 'react-chartjs-2';
 // Register Chart.js components
 Chart.register(...registerables);
 
+// Lista de tipos de recursos disponíveis
+const tiposRecursos = [
+  'HP', 'SP', 'EVP', 'BITS', 'CUBO R', 'CUBO C', 'CUBO U', 'CUBO M', 
+  'ASA DE ABELHA', 'ANTENA DE ABELHA', 'ENGRENAGEM', 'VELA', 'CHAPEU', 
+  'ASA DE AIRDRAMON', 'CABELO BLACK WAR', 'RIFT', 'COLAR', 'ANEL', 'BRACELETE'
+];
+
 export default function Home() {
-  const [hpInicio, setHpInicio] = useState('');
-  const [hpFim, setHpFim] = useState('');
-  const [hpPreco, setHpPreco] = useState('');
-  const [spInicio, setSpInicio] = useState('');
-  const [spFim, setSpFim] = useState('');
-  const [spPreco, setSpPreco] = useState('');
-  const [evpInicio, setEvpInicio] = useState('');
-  const [evpFim, setEvpFim] = useState('');
-  const [evpPreco, setEvpPreco] = useState('');
-  const [bitsInicio, setBitsInicio] = useState('');
-  const [bitsFim, setBitsFim] = useState('');
+  // Estado para campos dinâmicos
+  const [campos, setCampos] = useState([]);
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
   const [historico, setHistorico] = useState([]);
+  
+  // Estado para o modal
+  const [modalAberto, setModalAberto] = useState(false);
+  const [comboboxAberto, setComboboxAberto] = useState(false);
+  const [editandoRecurso, setEditandoRecurso] = useState(null);
+  
+  // Armazena os dados para cada tipo de recurso
+  const [dadosRecursos, setDadosRecursos] = useState(() => {
+    const dados = {};
+    tiposRecursos.forEach(tipo => {
+      dados[tipo] = {
+        inicio: '',
+        fim: '',
+        preco: tipo === 'BITS' ? '0' : ''
+      };
+    });
+    return dados;
+  });
+  
+  // Tipo atualmente selecionado no modal
+  const [tipoSelecionado, setTipoSelecionado] = useState('HP');
+
+  // Função para abrir o modal de adição
+  const abrirModal = (tipo = 'HP') => {
+    setTipoSelecionado(tipo);
+    setEditandoRecurso(null);
+    setModalAberto(true);
+    setComboboxAberto(false);
+  };
+
+  // Função para fechar o modal
+  const fecharModal = () => {
+    setModalAberto(false);
+    setEditandoRecurso(null);
+    setComboboxAberto(false);
+  };
+
+  // Função para adicionar um novo campo
+  const adicionarCampo = () => {
+    const dadosTipo = dadosRecursos[tipoSelecionado];
+    
+    if (!dadosTipo.inicio || !dadosTipo.fim) {
+      alert('Por favor, preencha pelo menos os campos início e fim.');
+      return;
+    }
+    
+    const novoCampo = {
+      id: editandoRecurso || Date.now(),
+      tipo: tipoSelecionado,
+      inicio: dadosTipo.inicio,
+      fim: dadosTipo.fim,
+      preco: tipoSelecionado === 'BITS' ? '0' : dadosTipo.preco || '0'
+    };
+    
+    if (editandoRecurso) {
+      setCampos(campos.map(campo => 
+        campo.id === editandoRecurso ? novoCampo : campo
+      ));
+    } else {
+      setCampos([...campos, novoCampo]);
+    }
+    
+    fecharModal();
+  };
+
+  // Função para remover um campo
+  const removerCampo = (id) => {
+    setCampos(campos.filter(campo => campo.id !== id));
+  };
+
+  // Função para editar um campo
+  const editarCampo = (campo) => {
+    // Não precisamos atualizar os dados do recurso aqui, pois já estão salvos no dadosRecursos
+    setTipoSelecionado(campo.tipo);
+    setEditandoRecurso(campo.id);
+    setModalAberto(true);
+    setComboboxAberto(false);
+  };
+
+  // Função para atualizar dados de um tipo de recurso
+  const atualizarDadosRecurso = (tipo, campo, valor) => {
+    setDadosRecursos(prev => ({
+      ...prev,
+      [tipo]: {
+        ...prev[tipo],
+        [campo]: valor
+      }
+    }));
+  };
+
+  // Preservar dados quando o tipo é alterado
+  useEffect(() => {
+    if (editandoRecurso) {
+      const campoEditado = campos.find(c => c.id === editandoRecurso);
+      if (campoEditado) {
+        // Atualiza os dados do tipo sendo editado
+        setDadosRecursos(prev => ({
+          ...prev,
+          [campoEditado.tipo]: {
+            inicio: campoEditado.inicio,
+            fim: campoEditado.fim,
+            preco: campoEditado.tipo === 'BITS' ? '0' : campoEditado.preco
+          }
+        }));
+      }
+    }
+  }, [editandoRecurso]);
 
   // Cálculos
-  const gastoHP = Math.max(0, (Number(hpInicio) - Number(hpFim))) * Number(hpPreco || 0);
-  const gastoSP = Math.max(0, (Number(spInicio) - Number(spFim))) * Number(spPreco || 0);
-  const gastoEVP = Math.max(0, (Number(evpInicio) - Number(evpFim))) * Number(evpPreco || 0);
-  const bitsAcumulados = Math.max(0, Number(bitsFim) - Number(bitsInicio));
-  const totalGasto = gastoHP + gastoSP + gastoEVP;
-  const resultado = bitsAcumulados - totalGasto;
+  const calcularResultados = () => {
+    const resultados = campos.map(campo => {
+      const inicio = Number(campo.inicio) || 0;
+      const fim = Number(campo.fim) || 0;
+      const preco = Number(campo.preco) || 0;
+      
+      // Se o tipo for BITS, o resultado é a diferença entre fim e início
+      if (campo.tipo === 'BITS') {
+        const diferenca = fim - inicio;
+        return {
+          id: campo.id,
+          tipo: campo.tipo,
+          inicio,
+          fim,
+          preco: 0,
+          diferenca,
+          resultado: diferenca
+        };
+      } else {
+        // Para outros tipos, multiplicamos a diferença pelo preço por unidade
+        const diferenca = fim - inicio;
+        const resultado = diferenca * preco;
+        
+        return {
+          id: campo.id,
+          tipo: campo.tipo,
+          inicio,
+          fim,
+          preco,
+          diferenca,
+          resultado
+        };
+      }
+    });
+    
+    return resultados;
+  };
+
+  const resultados = calcularResultados();
+  const totalGanhos = resultados.reduce((acc, item) => item.resultado > 0 ? acc + item.resultado : acc, 0);
+  const totalPerdas = resultados.reduce((acc, item) => item.resultado < 0 ? acc + item.resultado : acc, 0);
+  const resultado = resultados.reduce((acc, item) => acc + item.resultado, 0);
 
   // Calcular duração entre horário início e fim em minutos
   const calcularDuracao = () => {
@@ -53,8 +194,8 @@ export default function Home() {
 
   const duracao = calcularDuracao();
   
-  // Calcular taxa de bits por minuto
-  const taxaBits = duracao > 0 ? Math.round(bitsAcumulados / duracao) : 0;
+  // Calcular taxa por minuto
+  const taxaMinuto = resultado !== 0 && duracao > 0 ? Math.round(resultado / duracao) : 0;
   
   // Função para obter hora atual formatada
   const obterHoraAtual = () => {
@@ -75,8 +216,8 @@ export default function Home() {
   
   // Função para salvar no histórico
   const salvarNoHistorico = () => {
-    if (!horaInicio || !horaFim || !bitsAcumulados) {
-      alert('Preencha os horários e os bits acumulados para salvar no histórico.');
+    if (!horaInicio || !horaFim || campos.length === 0) {
+      alert('Preencha os horários e ao menos um recurso para salvar no histórico.');
       return;
     }
     
@@ -85,17 +226,14 @@ export default function Home() {
       horaInicio,
       horaFim,
       duracao,
-      bitsAcumulados,
-      totalGasto,
+      campos: campos.map(c => ({...c})), // Cópia dos campos
+      resultados: calcularResultados(),
       resultado,
-      taxaBits,
+      taxaMinuto,
       timestamp: new Date().toLocaleString()
     };
     
     setHistorico(prev => [...prev, novoRegistro]);
-    
-    // Opcional: Limpar os campos após salvar
-    // resetarCampos();
   };
   
   // Preparar dados para o gráfico
@@ -103,8 +241,8 @@ export default function Home() {
     labels: historico.map(item => `${item.horaInicio}-${item.horaFim}`),
     datasets: [
       {
-        label: 'Bits por Minuto',
-        data: historico.map(item => item.taxaBits),
+        label: 'Lucro/Perda por Sessão',
+        data: historico.map(item => item.resultado),
         borderColor: 'rgba(75, 192, 192, 1)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
         borderWidth: 2,
@@ -112,8 +250,8 @@ export default function Home() {
         fill: true
       },
       {
-        label: 'Resultado (Lucro/Prejuízo)',
-        data: historico.map(item => item.resultado),
+        label: 'Taxa por Minuto',
+        data: historico.map(item => item.taxaMinuto),
         borderColor: 'rgba(255, 99, 132, 1)',
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
         borderWidth: 2,
@@ -210,14 +348,6 @@ export default function Home() {
           position: relative;
         }
         
-        .digimon-title-icon {
-          display: inline-block;
-          width: 50px;
-          height: 50px;
-          margin-right: 10px;
-          vertical-align: middle;
-        }
-        
         .layout-container {
           display: grid;
           grid-template-columns: 1fr;
@@ -267,7 +397,7 @@ export default function Home() {
         .section-icon {
           font-size: 1.6rem;
         }
-        
+
         /* Estilos para a calculadora */
         .calculator-section {
           background: url('/images/calculator-bg.jpg');
@@ -295,31 +425,147 @@ export default function Home() {
         .fields-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 22px;
+          gap: 12px;
+        }
+
+        .add-field-section {
+          background: white;
+          border-radius: 14px;
+          padding: 16px;
+          margin-bottom: 16px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .add-field-title {
+          font-family: 'Orbitron', sans-serif;
+          font-size: 1rem;
+          font-weight: 600;
+          color: var(--color-blue);
+        }
+
+        .resource-selector {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+
+        .resource-button {
+          background: var(--color-light);
+          border: 1px solid #e2e8f0;
+          color: #4a5568;
+          border-radius: 8px;
+          padding: 8px 12px;
+          font-size: 0.85rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .resource-button:hover {
+          background: var(--color-blue);
+          color: white;
+          transform: translateY(-2px);
+        }
+
+        .dropdown-container {
+          position: relative;
+          width: 100%;
+        }
+
+        .dropdown-button {
+          background: var(--color-light);
+          border: 1px solid #e2e8f0;
+          width: 100%;
+          padding: 10px 16px;
+          text-align: left;
+          border-radius: 8px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+          font-size: 0.95rem;
+        }
+
+        .dropdown-menu {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: white;
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+          max-height: 200px;
+          overflow-y: auto;
+          z-index: 100;
+          margin-top: 4px;
+          display: none;
+        }
+
+        .dropdown-menu.active {
+          display: block;
+        }
+
+        .dropdown-item {
+          padding: 10px 16px;
+          cursor: pointer;
+        }
+
+        .dropdown-item:hover {
+          background: #f0f7ff;
         }
         
-        .fieldset {
+        .field-container {
           border: none;
           background: white;
           border-radius: 14px;
-          margin-bottom: 0;
-          padding: 22px;
+          margin-bottom: 10px;
+          padding: 18px;
           box-shadow: 0 4px 12px rgba(99, 66, 178, 0.1);
           border-left: 4px solid var(--color-blue);
+          position: relative;
+          cursor: pointer;
         }
         
-        .legend {
+        .field-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 12px;
+        }
+        
+        .field-title {
           font-family: 'Orbitron', sans-serif;
-          font-size: 1.15rem;
+          font-size: 1.1rem;
           font-weight: 600;
           color: var(--color-purple);
-          margin-bottom: 12px;
           letter-spacing: 0.5px;
           display: flex;
           align-items: center;
           gap: 8px;
-          padding-bottom: 8px;
-          border-bottom: 1px solid #e9eef6;
+        }
+        
+        .remove-button {
+          background: #fff;
+          color: #e53e3e;
+          border: 1px solid #fed7d7;
+          border-radius: 50%;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 1.1rem;
+          padding: 0;
+        }
+        
+        .remove-button:hover {
+          background: #e53e3e;
+          color: white;
         }
         
         .field-row {
@@ -331,17 +577,17 @@ export default function Home() {
         .input-label {
           display: flex;
           flex-direction: column;
-          margin-bottom: 16px;
-          font-size: 1rem;
+          margin-bottom: 14px;
+          font-size: 0.95rem;
           color: #4a5568;
         }
         
         .input-field {
-          height: 44px;
+          height: 42px;
           border-radius: 10px;
           border: 1px solid #e2e8f0;
           padding: 0 16px;
-          font-size: 1rem;
+          font-size: 0.95rem;
           transition: all 0.2s;
           background: white;
           margin-top: 6px;
@@ -384,24 +630,6 @@ export default function Home() {
         .button:hover {
           transform: translateY(-3px);
           box-shadow: 0 8px 20px rgba(99, 66, 178, 0.3);
-        }
-        
-        .button::after {
-          content: '';
-          position: absolute;
-          top: -50%;
-          left: -50%;
-          width: 200%;
-          height: 200%;
-          background: rgba(255, 255, 255, 0.1);
-          transform: rotate(45deg);
-          transition: all 0.6s ease;
-          opacity: 0;
-        }
-        
-        .button:hover::after {
-          opacity: 1;
-          transform: rotate(45deg) translate(10%, 10%);
         }
         
         .button-save {
@@ -498,7 +726,7 @@ export default function Home() {
         .result-value {
           font-weight: 600;
           color: var(--color-purple);
-          font-size: 1.05rem;
+          font-size: 1rem;
           text-align: right;
           padding-right: 8px;
           font-family: 'Orbitron', sans-serif;
@@ -541,7 +769,7 @@ export default function Home() {
         
         .icon {
           display: inline-block;
-          font-size: 1.3rem;
+          font-size: 1.2rem;
         }
         
         /* Estilos para os gráficos e histórico */
@@ -695,26 +923,6 @@ export default function Home() {
           color: var(--color-blue);
         }
         
-        .digimon-mascot {
-          position: absolute;
-          width: 80px;
-          height: 80px;
-          bottom: -10px;
-          right: -10px;
-          opacity: 0.8;
-        }
-        
-        .digimon-light-effect {
-          position: absolute;
-          top: 0;
-          right: 0;
-          width: 150px;
-          height: 150px;
-          background: radial-gradient(circle, rgba(255,140,41,0.2) 0%, rgba(255,255,255,0) 70%);
-          border-radius: 50%;
-          z-index: 0;
-        }
-        
         .time-summary {
           margin-top: 16px;
           background: white;
@@ -743,8 +951,97 @@ export default function Home() {
         .time-result-row:last-child {
           margin-bottom: 0;
         }
-        
-        /* Responsividade */
+
+        /* Estilos para o dropdown */
+        .dropdown-toggle {
+          background-color: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 10px 16px;
+          font-size: 0.95rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          width: 100%;
+          transition: all 0.2s;
+        }
+
+        .dropdown-toggle:hover {
+          border-color: var(--color-blue);
+        }
+
+        .dropdown-content {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          background-color: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          width: 100%;
+          max-height: 250px;
+          overflow-y: auto;
+          z-index: 10;
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+          display: none;
+          margin-top: 5px;
+        }
+
+        .dropdown-content.show {
+          display: block;
+        }
+
+        .dropdown-item {
+          padding: 10px 16px;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+          background-color: #f5f9ff;
+        }
+
+        .add-field-button {
+          background: var(--gradient-digimon);
+          color: white;
+          border: none;
+          border-radius: 10px;
+          padding: 10px 16px;
+          font-size: 0.95rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .add-field-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 15px rgba(99, 66, 178, 0.3);
+        }
+
+        /* Chip style for resources */
+        .resource-chip {
+          display: inline-flex;
+          align-items: center;
+          background: var(--color-light);
+          padding: 6px 12px;
+          border-radius: 16px;
+          margin: 5px;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: 1px solid #e2e8f0;
+        }
+
+        .resource-chip:hover {
+          background: var(--gradient-digimon);
+          color: white;
+        }
+
+        /* Responsive styles */
         @media (max-width: 768px) {
           .digimon-container {
             padding: 20px 16px;
@@ -762,11 +1059,6 @@ export default function Home() {
           .section-title {
             font-size: 1.3rem;
           }
-          
-          .digimon-mascot {
-            width: 60px;
-            height: 60px;
-          }
         }
         
         @media (max-width: 480px) {
@@ -778,52 +1070,285 @@ export default function Home() {
             width: 100%;
           }
         }
-        
-        /* Estilos para scrollbar personalizada */
-        .stats-scroll::-webkit-scrollbar {
-          width: 6px;
-          height: 6px;
-        }
-        
-        .stats-scroll::-webkit-scrollbar-track {
-          background: #f1f5f9;
+
+        .empty-message {
+          text-align: center;
+          padding: 20px;
+          background: white;
           border-radius: 10px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+          margin: 10px 0;
+          color: #718096;
+        }
+
+        /* Resultado item para exibir cada recurso */
+        .resultado-item {
+          display: flex;
+          align-items: center;
+          background: white;
+          padding: 10px 14px;
+          border-radius: 8px;
+          margin-bottom: 8px;
+          transition: all 0.2s;
+        }
+
+        .resultado-item:hover {
+          transform: translateX(3px);
+          background: #f5f9ff;
+        }
+
+        .resultado-tipo {
+          font-weight: 600;
+          min-width: 100px;
+          color: var(--color-purple);
+        }
+
+        .resultado-valores {
+          flex: 1;
+          display: flex;
+          justify-content: space-between;
+        }
+
+        .resultado-diferenca {
+          font-weight: 500;
+          margin-right: 10px;
+        }
+
+        .resultado-valor {
+          font-weight: 700;
+          font-family: 'Orbitron', sans-serif;
+        }
+
+        /* Estilo para o modal */
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.7);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+          padding: 20px;
         }
         
-        .stats-scroll::-webkit-scrollbar-thumb {
-          background: var(--color-purple);
-          border-radius: 10px;
+        .modal-container {
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          width: 100%;
+          max-width: 500px;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          animation: slideIn 0.3s ease-out;
+          position: relative;
         }
         
-        .stats-scroll::-webkit-scrollbar-thumb:hover {
+        @keyframes slideIn {
+          from {
+            transform: translateY(30px);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 20px;
+          padding-bottom: 12px;
+          border-bottom: 2px solid var(--color-light);
+        }
+        
+        .modal-title {
+          font-family: 'Orbitron', sans-serif;
+          font-size: 1.3rem;
+          font-weight: 600;
+          color: var(--color-dark);
+        }
+        
+        .modal-close-button {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          line-height: 1;
+          color: #718096;
+          cursor: pointer;
+          padding: 0;
+        }
+        
+        .modal-close-button:hover {
+          color: var(--color-red);
+        }
+        
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+          margin-top: 24px;
+        }
+        
+        .modal-button {
+          padding: 10px 16px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.95rem;
+          transition: all 0.2s;
+          cursor: pointer;
+          border: none;
+        }
+        
+        .modal-button-primary {
+          background: var(--gradient-energy);
+          color: white;
+        }
+        
+        .modal-button-secondary {
+          background: #e2e8f0;
+          color: #4a5568;
+        }
+        
+        .modal-button:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .resource-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+        
+        .resource-option {
+          padding: 8px 12px;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          text-align: center;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-size: 0.9rem;
+        }
+        
+        .resource-option.active {
           background: var(--color-blue);
+          color: white;
+          border-color: var(--color-blue);
         }
         
-        /* Ajustes para telas muito grandes */
-        @media (min-width: 1600px) {
-          .digimon-container {
-            max-width: 1600px;
-          }
-          
-          .layout-container {
-            grid-template-columns: 2fr 1fr 1fr;
-          }
-          
-          .input-field {
-            height: 48px;
-            font-size: 1.05rem;
-          }
+        .resource-option:hover:not(.active) {
+          background: #f7fafc;
+          border-color: #cbd5e0;
         }
         
-        /* Ajustes para telas médias */
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .layout-container {
-            grid-template-columns: 1fr 1fr;
-          }
-          
-          .section:last-child {
-            grid-column: span 2;
-          }
+        .edit-button {
+          background: var(--color-light);
+          border: none;
+          color: var(--color-blue);
+          border-radius: 50%;
+          width: 28px;
+          height: 28px;
+          font-size: 1rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          margin-right: 5px;
+          transition: all 0.2s;
+        }
+        
+        .edit-button:hover {
+          background: var(--color-blue);
+          color: white;
+        }
+        
+        .button-row-spaced {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 20px;
+        }
+        
+        .add-button {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        /* Combobox styles */
+        .combobox {
+          position: relative;
+          width: 100%;
+          margin-bottom: 20px;
+        }
+        
+        .combobox-button {
+          width: 100%;
+          padding: 12px 16px;
+          border: 1px solid #e2e8f0;
+          border-radius: 10px;
+          background-color: white;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 500;
+        }
+        
+        .combobox-button:hover {
+          border-color: var(--color-blue);
+        }
+        
+        .combobox-arrow {
+          transform: ${comboboxAberto ? 'rotate(180deg)' : 'rotate(0)'};
+          transition: transform 0.2s;
+          color: #718096;
+          font-size: 1.2rem;
+        }
+        
+        .combobox-options {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          max-height: 250px;
+          overflow-y: auto;
+          background-color: white;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+          border-radius: 10px;
+          margin-top: 5px;
+          z-index: 10;
+          border: 1px solid #e2e8f0;
+          display: ${comboboxAberto ? 'block' : 'none'};
+        }
+        
+        .combobox-option {
+          padding: 10px 16px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        
+        .combobox-option:hover {
+          background-color: #f0f7ff;
+        }
+        
+        /* Make resource item clickable */
+        .field-container {
+          cursor: pointer;
+        }
+        
+        /* Remove buttons from resource items that are no longer needed */
+        .compact-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
         }
       `}</style>
 
@@ -840,76 +1365,62 @@ export default function Home() {
                 <span className="section-icon">🧮</span> Calculadora
               </h2>
               
+              <div className="add-field-section">
+                <div className="button-row-spaced">
+                  <div className="add-field-title">Recursos</div>
+                  <button 
+                    type="button"
+                    className="button add-button"
+                    onClick={() => abrirModal()}
+                  >
+                    <span>➕</span> Adicionar Recurso
+                  </button>
+                </div>
+              </div>
+              
               <form>
                 <div className="fields-grid">
-                  {/* HP Fieldset */}
-                  <fieldset className="fieldset">
-                    <div className="legend">
-                      <span className="icon" role="img" aria-label="hp">❤️</span> HP
+                  {campos.length > 0 ? (
+                    campos.map(campo => (
+                      <div 
+                        key={campo.id} 
+                        className="field-container"
+                        onClick={() => editarCampo(campo)}
+                      >
+                        <div className="compact-header">
+                          <div className="field-title">{campo.tipo}</div>
+                          <button 
+                            type="button" 
+                            className="remove-button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removerCampo(campo.id);
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        
+                        <div className="field-row">
+                          <div className="input-label">Início:
+                            <div className="input-field">{campo.inicio}</div>
+                          </div>
+                          <div className="input-label">Fim:
+                            <div className="input-field">{campo.fim}</div>
+                          </div>
+                        </div>
+                        {campo.tipo !== 'BITS' && (
+                          <div className="input-label">Preço por unidade:
+                            <div className="input-field">{campo.preco}</div>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="empty-message">
+                      Clique no botão "Adicionar Recurso" para começar
                     </div>
-                    <div className="field-row">
-                      <label className="input-label">Início:
-                        <input className="input-field" type="number" value={hpInicio} onChange={e => setHpInicio(e.target.value)} />
-                      </label>
-                      <label className="input-label">Fim:
-                        <input className="input-field" type="number" value={hpFim} onChange={e => setHpFim(e.target.value)} />
-                      </label>
-                    </div>
-                    <label className="input-label">Preço por unidade:
-                      <input className="input-field" type="number" value={hpPreco} onChange={e => setHpPreco(e.target.value)} />
-                    </label>
-                  </fieldset>
-                  
-                  {/* SP Fieldset */}
-                  <fieldset className="fieldset">
-                    <div className="legend">
-                      <span className="icon" role="img" aria-label="sp">💧</span> SP
-                    </div>
-                    <div className="field-row">
-                      <label className="input-label">Início:
-                        <input className="input-field" type="number" value={spInicio} onChange={e => setSpInicio(e.target.value)} />
-                      </label>
-                      <label className="input-label">Fim:
-                        <input className="input-field" type="number" value={spFim} onChange={e => setSpFim(e.target.value)} />
-                      </label>
-                    </div>
-                    <label className="input-label">Preço por unidade:
-                      <input className="input-field" type="number" value={spPreco} onChange={e => setSpPreco(e.target.value)} />
-                    </label>
-                  </fieldset>
-                  
-                  {/* EVP Fieldset */}
-                  <fieldset className="fieldset">
-                    <div className="legend">
-                      <span className="icon" role="img" aria-label="evp">⚡</span> EVP
-                    </div>
-                    <div className="field-row">
-                      <label className="input-label">Início:
-                        <input className="input-field" type="number" value={evpInicio} onChange={e => setEvpInicio(e.target.value)} />
-                      </label>
-                      <label className="input-label">Fim:
-                        <input className="input-field" type="number" value={evpFim} onChange={e => setEvpFim(e.target.value)} />
-                      </label>
-                    </div>
-                    <label className="input-label">Preço por unidade:
-                      <input className="input-field" type="number" value={evpPreco} onChange={e => setEvpPreco(e.target.value)} />
-                    </label>
-                  </fieldset>
-                  
-                  {/* Bits Fieldset */}
-                  <fieldset className="fieldset">
-                    <div className="legend">
-                      <span className="icon" role="img" aria-label="bits">💰</span> Bits
-                    </div>
-                    <div className="field-row">
-                      <label className="input-label">Início:
-                        <input className="input-field" type="number" value={bitsInicio} onChange={e => setBitsInicio(e.target.value)} />
-                      </label>
-                      <label className="input-label">Fim:
-                        <input className="input-field" type="number" value={bitsFim} onChange={e => setBitsFim(e.target.value)} />
-                      </label>
-                    </div>
-                  </fieldset>
+                  )}
                   
                   {/* Time Section */}
                   <div className="time-section">
@@ -968,7 +1479,7 @@ export default function Home() {
                       <div className="time-result-row">
                         <span className="icon" role="img" aria-label="speed">⚡</span>
                         <span className="result-label">Taxa média:</span>
-                        <span className="result-value">{taxaBits} bits/min</span>
+                        <span className="result-value">{taxaMinuto} por min</span>
                       </div>
                     </div>
                   </div>
@@ -980,6 +1491,7 @@ export default function Home() {
                     type="button"
                     className="button button-save"
                     onClick={salvarNoHistorico}
+                    disabled={campos.length === 0}
                   >
                     💾 Salvar no Histórico
                   </button>
@@ -987,20 +1499,7 @@ export default function Home() {
                     type="button"
                     className="button button-clear"
                     onClick={() => {
-                      const inputs = document.querySelectorAll('input');
-                      inputs.forEach(input => input.value = '');
-                      
-                      setHpInicio('');
-                      setHpFim('');
-                      setHpPreco('');
-                      setSpInicio('');
-                      setSpFim('');
-                      setSpPreco('');
-                      setEvpInicio('');
-                      setEvpFim('');
-                      setEvpPreco('');
-                      setBitsInicio('');
-                      setBitsFim('');
+                      setCampos([]);
                       setHoraInicio('');
                       setHoraFim('');
                     }}
@@ -1019,37 +1518,44 @@ export default function Home() {
                 <span className="section-icon">📊</span> Resultados
               </h2>
               
-              <div>
+              {resultados.length > 0 ? (
+                <div className="resultado-lista">
+                  {resultados.map(res => (
+                    <div key={res.id} className="resultado-item">
+                      <div className="resultado-tipo">{res.tipo}</div>
+                      <div className="resultado-valores">
+                        <div className="resultado-diferenca">
+                          {res.inicio} → {res.fim} ({res.diferenca > 0 ? `+${res.diferenca}` : res.diferenca})
+                        </div>
+                        <div className={`resultado-valor ${res.resultado >= 0 ? 'result-positive' : 'result-negative'}`}>
+                          {res.resultado >= 0 ? `+${res.resultado}` : res.resultado}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="empty-message">
+                  Adicione recursos para ver os resultados
+                </div>
+              )}
+              
+              <div style={{ marginTop: '20px' }}>
                 <div className="result-row">
-                  <span className="icon" role="img" aria-label="hp">❤️</span>
-                  <span className="result-label">Gasto com HP:</span>
-                  <span className="result-value">{gastoHP}</span>
+                  <span className="icon" role="img" aria-label="ganhos">💰</span>
+                  <span className="result-label">Ganhos totais:</span>
+                  <span className="result-value result-positive">+{totalGanhos}</span>
                 </div>
                 <div className="result-row">
-                  <span className="icon" role="img" aria-label="sp">💧</span>
-                  <span className="result-label">Gasto com SP:</span>
-                  <span className="result-value">{gastoSP}</span>
-                </div>
-                <div className="result-row">
-                  <span className="icon" role="img" aria-label="evp">⚡</span>
-                  <span className="result-label">Gasto com EVP:</span>
-                  <span className="result-value">{gastoEVP}</span>
-                </div>
-                <div className="result-row">
-                  <span className="icon" role="img" aria-label="bits">💰</span>
-                  <span className="result-label">Bits acumulados:</span>
-                  <span className="result-value">{bitsAcumulados}</span>
-                </div>
-                <div className="result-row">
-                  <span className="icon" role="img" aria-label="total">🧾</span>
-                  <span className="result-label">Total gasto:</span>
-                  <span className="result-value">{totalGasto}</span>
+                  <span className="icon" role="img" aria-label="perdas">📉</span>
+                  <span className="result-label">Perdas totais:</span>
+                  <span className="result-value result-negative">{totalPerdas}</span>
                 </div>
               </div>
               
               <div className="result-highlight">
                 <span className="icon" role="img" aria-label="resultado" style={{ fontSize: '1.4rem', marginRight: '10px' }}>🏆</span>
-                <span className="result-label">Resultado do farm:</span>
+                <span className="result-label">Resultado final:</span>
                 <span className={resultado >= 0 ? "result-positive" : "result-negative"}>
                   {resultado >= 0 ? `+${resultado}` : resultado}
                 </span>
@@ -1059,15 +1565,15 @@ export default function Home() {
               {historico.length > 0 && (
                 <div className="summary-stats" style={{ marginTop: '24px' }}>
                   <div className="stat-card">
-                    <div className="stat-label">Taxa Média Total</div>
+                    <div className="stat-label">Sessões Totais</div>
                     <div className="stat-value">
-                      {Math.round(historico.reduce((acc, item) => acc + item.taxaBits, 0) / historico.length)} bits/min
+                      {historico.length}
                     </div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-label">Melhor Taxa</div>
                     <div className="stat-value">
-                      {Math.max(...historico.map(item => item.taxaBits))} bits/min
+                      {Math.max(...historico.map(item => item.taxaMinuto))} /min
                     </div>
                   </div>
                   <div className="stat-card">
@@ -1144,8 +1650,8 @@ export default function Home() {
                           <div className="history-details">
                             <div className="history-stat">⏱️ {item.horaInicio} a {item.horaFim}</div>
                             <div className="history-stat">⌛ Duração: {item.duracao} min</div>
-                            <div className="history-stat">💰 Bits: {item.bitsAcumulados}</div>
-                            <div className="history-stat">💸 Gastos: {item.totalGasto}</div>
+                            <div className="history-stat">📊 Recursos: {item.campos.length}</div>
+                            <div className="history-stat">⚡ Taxa/min: {item.taxaMinuto}</div>
                             <div className={`history-stat ${item.resultado >= 0 ? "result-positive" : "result-negative"}`} style={{ gridColumn: "span 2", fontWeight: "600" }}>
                               🏆 Resultado: {item.resultado >= 0 ? `+${item.resultado}` : item.resultado}
                             </div>
@@ -1158,7 +1664,7 @@ export default function Home() {
                   <div className="empty-history">
                     <div className="empty-history-icon">📊</div>
                     <p>Ainda não há sessões no histórico.</p>
-                    <p>Preencha os dados e clique em "Salvar no Histórico".</p>
+                    <p>Adicione recursos, preencha os dados e clique em "Salvar no Histórico".</p>
                   </div>
                 )}
               </div>
@@ -1166,6 +1672,111 @@ export default function Home() {
           </section>
         </div>
       </div>
+      
+      {/* Modal para adição de recursos */}
+      {modalAberto && (
+        <div className="modal-overlay" onClick={(e) => {
+          if (e.target.className === 'modal-overlay') {
+            fecharModal();
+          }
+        }}>
+          <div className="modal-container">
+            <div className="modal-header">
+              <div className="modal-title">
+                {editandoRecurso ? 'Editar Recurso' : 'Adicionar Recurso'}
+              </div>
+              <button 
+                type="button" 
+                className="modal-close-button"
+                onClick={fecharModal}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div>
+              {/* Combobox para selecionar tipo de recurso */}
+              <div style={{marginBottom: '16px'}}>
+                <label className="input-label" style={{fontWeight: 'bold'}}>
+                  Tipo de Recurso:
+                </label>
+                <div className="combobox">
+                  <button
+                    type="button"
+                    className="combobox-button"
+                    onClick={() => setComboboxAberto(!comboboxAberto)}
+                  >
+                    <span>{tipoSelecionado}</span>
+                    <span className="combobox-arrow">▼</span>
+                  </button>
+                  <div className="combobox-options">
+                    {tiposRecursos.map(tipo => (
+                      <div
+                        key={tipo}
+                        className="combobox-option"
+                        onClick={() => {
+                          setTipoSelecionado(tipo);
+                          setComboboxAberto(false);
+                        }}
+                      >
+                        {tipo}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Campos de entrada para o recurso selecionado */}
+              <div className="field-row">
+                <label className="input-label">Início:
+                  <input 
+                    className="input-field" 
+                    type="number" 
+                    value={dadosRecursos[tipoSelecionado].inicio} 
+                    onChange={e => atualizarDadosRecurso(tipoSelecionado, 'inicio', e.target.value)} 
+                  />
+                </label>
+                <label className="input-label">Fim:
+                  <input 
+                    className="input-field" 
+                    type="number" 
+                    value={dadosRecursos[tipoSelecionado].fim} 
+                    onChange={e => atualizarDadosRecurso(tipoSelecionado, 'fim', e.target.value)} 
+                  />
+                </label>
+              </div>
+              
+              {tipoSelecionado !== 'BITS' && (
+                <label className="input-label">Preço por unidade:
+                  <input 
+                    className="input-field" 
+                    type="number" 
+                    value={dadosRecursos[tipoSelecionado].preco} 
+                    onChange={e => atualizarDadosRecurso(tipoSelecionado, 'preco', e.target.value)} 
+                  />
+                </label>
+              )}
+              
+              <div className="modal-footer">
+                <button 
+                  type="button"
+                  className="modal-button modal-button-secondary"
+                  onClick={fecharModal}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  className="modal-button modal-button-primary"
+                  onClick={adicionarCampo}
+                >
+                  {editandoRecurso ? 'Salvar Alterações' : 'Adicionar Recurso'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
